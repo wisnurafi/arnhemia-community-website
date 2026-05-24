@@ -83,7 +83,7 @@ Enforcement happens at three layers:
 
 ## Setup
 
-Read `SETUP.md` for the full step-by-step guide (~10 minutes from zero).
+Read [SETUP.md](./SETUP.md) for the full step-by-step guide (~10 minutes from zero).
 
 Quick version:
 
@@ -103,8 +103,8 @@ Quick version:
 3. Copy the project URL, anon key, and service_role key into `.env.local`
    (see `.env.example`).
 4. Disable email confirmation in Supabase, create your owner user, run
-   the `bootstrap_owner` SQL in `SETUP.md`, then re-enable email
-   confirmation.
+   the `bootstrap_owner` SQL in [SETUP.md](./SETUP.md), then re-enable
+   email confirmation.
 5. `npm install && npm run dev`.
 
 ## Environment variables
@@ -197,7 +197,7 @@ npm run build
 npm start
 ```
 
-For Vercel deploy, see `SETUP.md` -> "Deploy to Vercel".
+For Vercel deploy, see [SETUP.md](./SETUP.md) -> "Deploy to Vercel".
 
 ## Scripts
 
@@ -208,4 +208,4 @@ For Vercel deploy, see `SETUP.md` -> "Deploy to Vercel".
 
 ## Production checklist
 
-See `SETUP.md` -> "Production checklist" for the pre-launch list.
+See [SETUP.md](./SETUP.md) -> "Production checklist" for the pre-launch list.
