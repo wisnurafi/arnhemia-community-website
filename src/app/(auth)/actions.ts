@@ -37,13 +37,13 @@ export async function loginAction(
     aal.nextLevel === "aal2" &&
     aal.currentLevel !== "aal2"
   ) {
-    revalidatePath("/", "layout");
+    revalidatePath(redirectTo);
     redirect(
       `/login/mfa?redirect=${encodeURIComponent(redirectTo)}`,
     );
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath(redirectTo);
   redirect(redirectTo);
 }
 
@@ -132,7 +132,7 @@ export async function registerAction(
     };
   }
 
-  revalidatePath("/", "layout");
+  revalidatePath("/forums");
 
   // If email confirmation is enabled, the user must confirm before signing in.
   // Otherwise signUp() returned a session and they're already logged in.
@@ -149,6 +149,12 @@ export async function registerAction(
 export async function logoutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+
+  // Clear the MFA hint cookie so it doesn't persist across sessions.
+  const { cookies } = await import("next/headers");
+  const cookieStore = await cookies();
+  cookieStore.set("aal-verified", "", { maxAge: 0, path: "/" });
+
   revalidatePath("/", "layout");
   redirect("/");
 }
