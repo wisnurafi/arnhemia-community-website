@@ -14,6 +14,8 @@ const nextConfig = {
       // but bumping this keeps small/medium uploads through actions safe.
       bodySizeLimit: "10mb",
     },
+    // Optimizes packages for faster server-side rendering.
+    optimizePackageImports: ["lucide-react", "framer-motion"],
   },
 };
 

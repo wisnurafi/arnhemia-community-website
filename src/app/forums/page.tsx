@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { NavbarServer } from "@/components/layout/navbar-server";
 import { Footer } from "@/components/layout/footer";
@@ -34,23 +35,37 @@ export default async function ForumsPage() {
   const supabase = await createClient();
   await getSession();
 
-  const { data: rawGroups } = await supabase
-    .from("forum_groups")
-    .select(
-      "id, name, position, created_at, categories:forum_categories(id, group_id, title, description, icon, position, staff_only, created_at)",
-    )
-    .order("position");
+  // Fire all queries in parallel instead of sequentially.
+  const [
+    { data: rawGroups },
+    { data: latestThreads },
+    { data: counts },
+    { data: trending },
+  ] = await Promise.all([
+    supabase
+      .from("forum_groups")
+      .select(
+        "id, name, position, created_at, categories:forum_categories(id, group_id, title, description, icon, position, staff_only, created_at)",
+      )
+      .order("position"),
+    supabase
+      .from("threads")
+      .select(
+        "id, title, category_id, last_reply_at, author:profiles!threads_author_id_fkey(username, avatar_url)",
+      )
+      .order("last_reply_at", { ascending: false })
+      .limit(50),
+    supabase.from("threads").select("category_id"),
+    supabase
+      .from("threads")
+      .select(
+        "id, title, body, reply_count, views, last_reply_at, pinned, locked, category_id, author:profiles!threads_author_id_fkey(id, username, avatar_url, role)",
+      )
+      .order("last_reply_at", { ascending: false })
+      .limit(5),
+  ]);
 
   const groups = (rawGroups ?? []) as unknown as GroupWithCategories[];
-
-  // Fetch the latest thread per category in a single query.
-  const { data: latestThreads } = await supabase
-    .from("threads")
-    .select(
-      "id, title, category_id, last_reply_at, author:profiles!threads_author_id_fkey(username, avatar_url)",
-    )
-    .order("last_reply_at", { ascending: false })
-    .limit(50);
 
   const lastByCategory = new Map<
     string,
@@ -72,23 +87,10 @@ export default async function ForumsPage() {
     }
   });
 
-  // Counts per category
-  const { data: counts } = await supabase
-    .from("threads")
-    .select("category_id");
   const countByCat = new Map<string, number>();
   (counts ?? []).forEach((r) => {
     countByCat.set(r.category_id, (countByCat.get(r.category_id) ?? 0) + 1);
   });
-
-  // Trending: latest 5 threads platform-wide.
-  const { data: trending } = await supabase
-    .from("threads")
-    .select(
-      "id, title, body, reply_count, views, last_reply_at, pinned, locked, category_id, author:profiles!threads_author_id_fkey(id, username, avatar_url, role)",
-    )
-    .order("last_reply_at", { ascending: false })
-    .limit(5);
 
   // Map category_id -> category title for trending row label.
   const allCats = groups.flatMap((g) => g.categories ?? []);
@@ -213,8 +215,12 @@ export default async function ForumsPage() {
           </div>
 
           <div className="space-y-6">
-            <ShoutboxServer />
-            <Sidebar />
+            <Suspense fallback={<div className="panel h-72 animate-pulse bg-white/[0.02]" />}>
+              <ShoutboxServer />
+            </Suspense>
+            <Suspense fallback={<div className="panel h-64 animate-pulse bg-white/[0.02]" />}>
+              <Sidebar />
+            </Suspense>
           </div>
         </div>
       </main>

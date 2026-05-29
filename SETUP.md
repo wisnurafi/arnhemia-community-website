@@ -16,7 +16,7 @@ What you need:
 4. Verify your email if asked
 
 ---
-
+asd
 ## 🚀 STEP 2 — Create a new project (2 minutes)
 
 1. After login, click **New project** (the green button)

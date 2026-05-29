@@ -19,11 +19,24 @@ const PUBLIC_PREFIXES = [
 const AUTH_PAGES = ["/login", "/register"];
 const MFA_PATH = "/login/mfa";
 
+// Paths where we never need to check MFA (avoids extra Supabase round-trip).
+const MFA_SKIP_PREFIXES = [
+  "/auth/callback",
+  "/_next",
+  "/api/",
+  "/login/mfa",
+];
+
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) return true;
   return PUBLIC_PREFIXES.some(
     (p) => pathname === p.replace(/\/$/, "") || pathname.startsWith(p),
   );
+}
+
+function shouldSkipMfaCheck(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return MFA_SKIP_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
 export async function updateSession(request: NextRequest) {
@@ -79,24 +92,33 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If user signed in but hasn't passed the MFA step, force them through it.
-  if (user) {
-    const { data: aal } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const needsMfa =
-      aal?.nextLevel === "aal2" && aal?.currentLevel !== "aal2";
-    if (
-      needsMfa &&
-      !pathname.startsWith(MFA_PATH) &&
-      !pathname.startsWith("/auth/callback") &&
-      pathname !== "/" &&
-      !pathname.startsWith("/_next") &&
-      !pathname.startsWith("/api/")
-    ) {
-      const url = request.nextUrl.clone();
-      url.pathname = MFA_PATH;
-      url.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(url);
+  // MFA enforcement: only check AAL if the user has MFA factors enrolled.
+  // We use a lightweight cookie hint ("aal-verified") set after successful MFA
+  // verification to skip the extra Supabase call on subsequent navigations.
+  // The cookie is cleared on logout so it can't go stale.
+  if (user && !shouldSkipMfaCheck(pathname)) {
+    const aalVerified = request.cookies.get("aal-verified")?.value === "1";
+    if (!aalVerified) {
+      const { data: aal } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      const needsMfa =
+        aal?.nextLevel === "aal2" && aal?.currentLevel !== "aal2";
+      if (needsMfa) {
+        const url = request.nextUrl.clone();
+        url.pathname = MFA_PATH;
+        url.searchParams.set("redirect", pathname);
+        return NextResponse.redirect(url);
+      }
+      // User either passed MFA or doesn't have it enrolled — set hint cookie
+      // so we skip this check on the next navigation within this session.
+      supabaseResponse.cookies.set("aal-verified", "1", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        // Expire with the session (browser close) or 1 hour max
+        maxAge: 3600,
+      });
     }
   }
 

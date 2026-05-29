@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { Bell, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,22 @@ import { createClient } from "@/lib/supabase/server";
 import { AlertsPanelServer } from "./alerts-panel-server";
 import { ConversationsPanelServer } from "./conversations-panel-server";
 import { RealtimeRefresh } from "./realtime-refresh";
+
+function AlertsFallback() {
+  return (
+    <Button variant="ghost" size="icon" className="relative" disabled>
+      <Bell className="size-[18px]" />
+    </Button>
+  );
+}
+
+function ConversationsFallback() {
+  return (
+    <Button variant="ghost" size="icon" className="relative" disabled>
+      <MessageSquare className="size-[18px]" />
+    </Button>
+  );
+}
 
 export async function NavbarServer() {
   const session = await getSession();
@@ -43,21 +60,25 @@ export async function NavbarServer() {
         profile={session.profile}
         unreadAlerts={unreadAlerts ?? 0}
         conversationsSlot={
-          <ConversationsPanelServer>
-            <Button variant="ghost" size="icon" className="relative">
-              <MessageSquare className="size-[18px]" />
-            </Button>
-          </ConversationsPanelServer>
+          <Suspense fallback={<ConversationsFallback />}>
+            <ConversationsPanelServer>
+              <Button variant="ghost" size="icon" className="relative">
+                <MessageSquare className="size-[18px]" />
+              </Button>
+            </ConversationsPanelServer>
+          </Suspense>
         }
         alertsSlot={
-          <AlertsPanelServer>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="size-[18px]" />
-              {unreadAlerts && unreadAlerts > 0 ? (
-                <span className="absolute right-2 top-2 size-1.5 rounded-full bg-white ring-2 ring-background" />
-              ) : null}
-            </Button>
-          </AlertsPanelServer>
+          <Suspense fallback={<AlertsFallback />}>
+            <AlertsPanelServer>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="size-[18px]" />
+                {unreadAlerts && unreadAlerts > 0 ? (
+                  <span className="absolute right-2 top-2 size-1.5 rounded-full bg-white ring-2 ring-background" />
+                ) : null}
+              </Button>
+            </AlertsPanelServer>
+          </Suspense>
         }
       />
       {/*
